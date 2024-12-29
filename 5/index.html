@@ -100,13 +100,162 @@
 <li>Протокол: HTTP</li>
 </ul>
 <h2 id="_3">Как запускать</h2>
-<ol>
-<li>Сервер:
-    ```python<pre><code>  fifth.py
+<pre><code class="language-python">
+    import socket
+    from urllib.parse import unquote_plus
+
+    # Хранение данных об оценках
+    grades = []
+
+
+    # Генерация HTML контента для отображения оценок
+    def generate_html():
+        html = '''
+        &lt;html&gt;
+            &lt;head&gt;
+                &lt;meta charset=&quot;UTF-8&quot;&gt;
+                &lt;title&gt;Оценки по дисциплинам&lt;/title&gt;
+                &lt;style&gt;
+                    body {
+                        font-family: Arial, sans-serif;
+                        background-color: #f8f0f6;
+                        margin: 0;
+                        padding: 0;
+                        color: #333;
+                    }
+                    h1 {
+                        background-color: #f06292;
+                        color: white;
+                        padding: 20px;
+                        margin: 0;
+                        text-align: center;
+                    }
+                    h2 {
+                        font-size: 1.2em;
+                        color: #f06292;
+                        margin-top: 20px;
+                    }
+                    ul {
+                        list-style-type: none;
+                        padding-left: 0;
+                    }
+                    li {
+                        background-color: #ffffff;
+                        margin: 10px 0;
+                        padding: 10px;
+                        border: 1px solid #f06292;
+                        border-radius: 4px;
+                    }
+                    form {
+                        background-color: #ffffff;
+                        padding: 20px;
+                        margin-top: 30px;
+                        border: 1px solid #f06292;
+                        border-radius: 4px;
+                        width: 300px;
+                        margin-left: auto;
+                        margin-right: auto;
+                    }
+                    label {
+                        display: block;
+                        margin-bottom: 10px;
+                    }
+                    input[type=&quot;text&quot;] {
+                        width: 100%;
+                        padding: 10px;
+                        margin: 5px 0 20px 0;
+                        border: 1px solid #f06292;
+                        border-radius: 4px;
+                    }
+                    input[type=&quot;submit&quot;] {
+                        background-color: #f06292;
+                        color: white;
+                        padding: 10px 15px;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        width: 100%;
+                    }
+                    input[type=&quot;submit&quot;]:hover {
+                        background-color: #ec407a;
+                    }
+                &lt;/style&gt;
+            &lt;/head&gt;
+            &lt;body&gt;
+                &lt;h1&gt;Оценки по дисциплинам&lt;/h1&gt;
+                &lt;div style=&quot;text-align: center;&quot;&gt;
+                    &lt;ul&gt;
+        '''
+
+        # Сгруппировать оценки по дисциплинам
+        subjects = {}
+        for grade in grades:
+            subjects.setdefault(grade['subject'], []).append(grade['score'])
+
+        # Вывод оценок по дисциплинам
+        html += ''.join([f&quot;&lt;li&gt;{subject}: {', '.join(scores)}&lt;/li&gt;&quot; for subject, scores in subjects.items()])
+
+        # Форма для добавления новой оценки
+        html += '''
+                    &lt;/ul&gt;
+                    &lt;h2&gt;Добавить оценку&lt;/h2&gt;
+                    &lt;form method=&quot;POST&quot;&gt;
+                        &lt;label&gt;Дисциплина:&lt;/label&gt;
+                        &lt;input type=&quot;text&quot; name=&quot;subject&quot; required&gt;
+                        &lt;label&gt;Оценка:&lt;/label&gt;
+                        &lt;input type=&quot;text&quot; name=&quot;score&quot; required&gt;
+                        &lt;input type=&quot;submit&quot; value=&quot;Добавить&quot;&gt;
+                    &lt;/form&gt;
+                &lt;/div&gt;
+            &lt;/body&gt;
+        &lt;/html&gt;
+        '''
+        return html
+
+
+    # Парсинг POST данных
+    def parse_post_data(data):
+        return {key: unquote_plus(value) for key, value in (param.split('=') for param in data.split('&amp;'))}
+
+
+    # Обработка HTTP-запросов
+    def handle_request(request):
+        headers, _, body = request.partition('\r\n\r\n')
+        method = headers.splitlines()[0].split()[0]
+
+        if method == 'GET':
+            return f&quot;HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n{generate_html()}&quot;
+
+        elif method == 'POST':
+            post_data = parse_post_data(body)
+            grades.append({'subject': post_data.get('subject', ''), 'score': post_data.get('score', '')})
+            return f&quot;HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n{generate_html()}&quot;
+
+
+    # Запуск HTTP сервера
+    def start_server():
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind(('localhost', 8088))
+        server_socket.listen(5)
+        print(&quot;Сервер запущен на http://localhost:8088&quot;)
+
+        while True:
+            client_socket, addr = server_socket.accept()
+            print(f&quot;Подключение от {addr}&quot;)
+
+            request = client_socket.recv(1024).decode('utf-8')
+            if request:
+                response = handle_request(request)
+                client_socket.sendall(response.encode('utf-8'))
+
+            client_socket.close()
+
+
+    # Главная точка входа
+    if __name__ == '__main__':
+        start_server()
+
 </code></pre>
-<p>```</p>
-</li>
-</ol>
 <h2 id="_4">Описание</h2>
 <p>Код представляет собой простое веб-приложение, позволяющее добавлять оценки по дисциплинам и отображать их на веб-странице, используя сокеты и обработку HTTP-запросов.</p>
               
